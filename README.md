@@ -61,7 +61,7 @@ production Telegram credentials in this file.
 Start a clean local environment with an empty database:
 
 ```bash
-scripts/start-dev.sh
+make dev
 ```
 
 The bot is then reachable with the test token. Send `/get_backup` to it from
@@ -69,7 +69,7 @@ the private chat of the configured test administrator, download the returned
 `.dump` document, and create a new local environment restored from it:
 
 ```bash
-scripts/start-dev.sh /path/to/beneburg-YYYYMMDDTHHMMSSZ.dump
+make dev_from_backup BACKUP=/path/to/beneburg-YYYYMMDDTHHMMSSZ.dump
 ```
 
 Each command recreates only the `beneburg-dev` Compose project's PostgreSQL

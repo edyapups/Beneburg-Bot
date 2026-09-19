@@ -169,7 +169,11 @@ func (b *botManager) processUpdate(update tgbotapi.Update) {
 }
 
 func (b *botManager) processMessage(message *tgbotapi.Message) {
-	b.logger.Named("processMessage").Debug("Processing message", zap.String("chat_title", message.Chat.Title))
+	b.logger.Named("processMessage").Debug(
+		"Processing message",
+		zap.String("chat_title", message.Chat.Title),
+		zap.Int64("chat_id", message.Chat.ID),
+	)
 	if from := message.From; from != nil && !from.IsBot {
 		b.logger.Named("processMessage").Debug("Processing message from user", zap.String("username", from.UserName), zap.String("first_name", from.FirstName), zap.String("last_name", from.LastName))
 		user := model.User{
