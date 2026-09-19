@@ -153,7 +153,7 @@ func (d *database) UpdateOrCreateUser(ctx context.Context, u *model.User) (*mode
 	return d.GetUserByTelegramID(ctx, u.TelegramID)
 }
 func (d *database) CreateOrProlongToken(ctx context.Context, telegramID int64) (*model.Token, error) {
-	t := &model.Token{UUID: d.uuidGen().String(), UserTelegramId: telegramID, ExpireAt: time.Now().UTC().Add(24 * time.Hour)}
+	t := &model.Token{UUID: d.uuidGen().String(), UserTelegramId: telegramID, ExpireAt: tokenExpirationDate(time.Now())}
 	q, a, err := d.qb.Insert(model.TableNameToken).Columns("uuid", "user_telegram_id", "expire_at").Values(t.UUID, t.UserTelegramId, t.ExpireAt).Suffix("ON CONFLICT(user_telegram_id) DO UPDATE SET uuid=excluded.uuid, expire_at=excluded.expire_at").ToSql()
 	if err != nil {
 		return nil, err
@@ -161,6 +161,11 @@ func (d *database) CreateOrProlongToken(ctx context.Context, telegramID int64) (
 	_, err = d.db.ExecContext(ctx, q, a...)
 	return t, err
 }
+
+func tokenExpirationDate(now time.Time) time.Time {
+	return now.UTC().AddDate(0, 1, 0)
+}
+
 func (d *database) GetUserByToken(ctx context.Context, token string) (*model.User, error) {
 	q, a, _ := d.qb.Select(userColumns("u")...).From("users u JOIN tokens t ON t.user_telegram_id = u.telegram_id").Where(squirrel.Eq{"t.uuid": token}).Where("t.expire_at > CURRENT_TIMESTAMP").Where("u.deleted_at IS NULL").ToSql()
 	return scanUser(d.db.QueryRowContext(ctx, q, a...))

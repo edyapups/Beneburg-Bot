@@ -83,14 +83,12 @@ func (t templator) NewFormPoll() string {
 func (t templator) NewFormMessage(user *model.User, form *model.Form) string {
 	stringBuilder := strings.Builder{}
 	if user.Status == model.UserStatusActive {
-		stringBuilder.WriteString("<b>")
-		stringBuilder.WriteString(fmt.Sprintf("<a href=\"tg://user?id=%d\">Участник</a> ", user.TelegramID))
-		stringBuilder.WriteString("изменил анкету:")
-		stringBuilder.WriteString("</b>")
-	} else {
-		stringBuilder.WriteString("<b>Новая анкета!</b>")
+		stringBuilder.WriteString("<b>Участник изменил анкету.</b>\n")
+		stringBuilder.WriteString(html.EscapeString(t.UserPageLink(user)))
+		return stringBuilder.String()
 	}
 
+	stringBuilder.WriteString("<b>Новая анкета!</b>")
 	AddDelimiter(&stringBuilder)
 	stringBuilder.WriteString(t.FormInfo(form))
 	AddDelimiter(&stringBuilder)
