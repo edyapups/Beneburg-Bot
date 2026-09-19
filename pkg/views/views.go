@@ -146,9 +146,19 @@ func (v views) profileForm(g *gin.Context) {
 	if ok && len(strings.TrimSpace(contactsFormValue)) > 0 {
 		form.Contacts = &contactsFormValue
 	}
+	if user.Status == model.UserStatusActive {
+		// Active participants may update their public profile without moderation.
+		form.Status = model.FormStatusAccepted
+	}
 	_, err := v.db.CreateForm(g, form)
 	if err != nil {
 		v.logger.Named("profileForm").Error("Error creating form", zap.Error(err))
+		g.Redirect(http.StatusFound, "/profile")
+		return
+	}
+	if user.Status == model.UserStatusActive {
+		g.Redirect(http.StatusFound, "/profile")
+		return
 	}
 	message := tgbotapi.NewMessage(user.TelegramID, v.templator.FormReceived())
 	v.sendToBot(message)
