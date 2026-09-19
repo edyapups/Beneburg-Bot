@@ -29,6 +29,12 @@ compose() {
   docker compose "${compose_files[@]}" "$@"
 }
 
+cleanup() {
+  echo
+  echo "Stopping and removing the local development environment..."
+  compose down --volumes --remove-orphans
+}
+
 # The named project isolates these volumes from production and other Compose stacks.
 compose down --volumes --remove-orphans
 compose up -d postgres
@@ -57,3 +63,7 @@ fi
 
 compose up -d --build server
 echo "Local environment is ready at http://127.0.0.1:${LOCAL_HTTP_PORT:-8081}"
+echo "Following server logs. Press Ctrl+C to stop and remove the environment."
+trap 'cleanup; exit 130' INT
+trap 'cleanup; exit 143' TERM
+compose logs --follow server
