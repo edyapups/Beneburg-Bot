@@ -3,6 +3,7 @@ package main
 import (
 	"beneburg/pkg/database"
 	"beneburg/pkg/middleware"
+	"beneburg/pkg/scheduler"
 	"beneburg/pkg/telegram"
 	"beneburg/pkg/views"
 	"context"
@@ -60,6 +61,21 @@ func run(logger *zap.Logger) error {
 	if config.Database.OnlyMakeMigrations {
 		logger.Info("Migrations were made, exiting...")
 		return nil
+	}
+
+	schedulerConfig, err := scheduler.ConfigFromEnvironment()
+	if err != nil {
+		return err
+	}
+	jobScheduler, err := scheduler.New(db, schedulerConfig, logger.Named("scheduler"))
+	if err != nil {
+		return err
+	}
+	schedulerContext, cancelScheduler := context.WithCancel(ctx)
+	defer jobScheduler.Stop()
+	defer cancelScheduler()
+	if err := jobScheduler.Start(schedulerContext); err != nil {
+		return err
 	}
 
 	// Configuring bot

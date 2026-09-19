@@ -31,6 +31,8 @@ services:
       - GROUP_ID
       - INVITE_LINK
       - DOMAIN
+      - SCHEDULER_POLL_INTERVAL
+      - JOB_RUNS_RETENTION_MONTHS
     build:
       context: .
       dockerfile: "deploy/server/${DOCKER_FILE:-deploy}.Dockerfile"

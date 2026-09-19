@@ -46,6 +46,7 @@ type Database interface {
 // Store is the production database handle. Repository callers only need Database.
 type Store interface {
 	Database
+	ScheduledJobStore
 	Ping(context.Context) error
 	Close() error
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,27 @@ func TestPostgresMigrateAndRepository(t *testing.T) {
 
 	require.NoError(t, store.Migrate(ctx))
 	require.NoError(t, store.Migrate(ctx))
+
+	now := time.Now().UTC()
+	require.NoError(t, store.EnsureScheduledJob(ctx, ScheduledJob{
+		Name:           "test.cleanup",
+		JobType:        "cleanup",
+		CronExpression: "* * * * *",
+		Timezone:       "UTC",
+		Payload:        []byte(`{}`),
+		Enabled:        true,
+		NextRunAt:      now.Add(-time.Minute),
+	}))
+	runs, jobs, err := store.ClaimDueScheduledJobs(ctx, now, 10, func(job ScheduledJob) (time.Time, error) {
+		return job.NextRunAt.Add(time.Minute), nil
+	})
+	require.NoError(t, err)
+	require.Len(t, runs, 1)
+	require.Len(t, jobs, 1)
+	require.NoError(t, store.FinishJobRun(ctx, runs[0].ID, "succeeded", ""))
+	deleted, err := store.DeleteFinishedJobRunsBefore(ctx, now.Add(time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, int64(1), deleted)
 
 	user, err := store.CreateUser(ctx, &model.User{
 		TelegramID: 10,
