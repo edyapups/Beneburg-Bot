@@ -54,13 +54,20 @@ func TestProfileFormAcceptsActiveUserWithoutModeration(t *testing.T) {
 		},
 	)
 
+	var groupMessage tgbotapi.MessageConfig
 	botWasCalled := false
 	view := views{
-		db:        databaseMock,
-		logger:    zap.NewNop(),
-		templator: telegram.NewTemplator("example.com"),
-		sendToBot: func(tgbotapi.Chattable) {
+		db:              databaseMock,
+		logger:          zap.NewNop(),
+		templator:       telegram.NewTemplator("example.com"),
+		groupTelegramID: -100123,
+		sendToBot: func(message tgbotapi.Chattable) {
 			botWasCalled = true
+			var isMessage bool
+			groupMessage, isMessage = message.(tgbotapi.MessageConfig)
+			if !isMessage {
+				t.Errorf("sent message type = %T, want tgbotapi.MessageConfig", message)
+			}
 		},
 	}
 	formValues := url.Values{"name": {"Анна"}, "gender": {"женский"}}
@@ -81,7 +88,16 @@ func TestProfileFormAcceptsActiveUserWithoutModeration(t *testing.T) {
 	if location := recorder.Header().Get("Location"); location != "/profile" {
 		t.Errorf("redirect location = %q, want %q", location, "/profile")
 	}
-	if botWasCalled {
-		t.Error("active user's form was sent for moderation")
+	if !botWasCalled {
+		t.Error("active user's updated form was not sent to the group")
+	}
+	if groupMessage.ChatID != -100123 {
+		t.Errorf("group chat ID = %d, want %d", groupMessage.ChatID, -100123)
+	}
+	if groupMessage.ParseMode != tgbotapi.ModeHTML {
+		t.Errorf("parse mode = %q, want %q", groupMessage.ParseMode, tgbotapi.ModeHTML)
+	}
+	if !strings.Contains(groupMessage.Text, "<blockquote expandable>") {
+		t.Errorf("group message does not contain an expandable quote: %q", groupMessage.Text)
 	}
 }

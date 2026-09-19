@@ -4,7 +4,7 @@
     {{end}}
 
     {{ if or (ne .form.Status "new") (.no_forms) }}
-        <form method="post" action="/{{ .page }}/form">
+        <form method="post" action="/{{ .page }}/form" id="profileForm">
             <div class="mb-3">
                 <label class="form-label fs-5 fw-bold" for="nameField">Как к тебе обращаться?</label>
                 <input required type="text" class="form-control" name="name" id="nameField" placeholder="Имя" {{ with .form.Name }} value="{{.}}" {{end}}>
@@ -60,7 +60,7 @@
                 <textarea class="form-control" name="contacts" id="contactsField" rows="4">{{with .form.Contacts}}{{.}}{{end}}</textarea>
                 <div class="form-text">Тут можно указать ссылочки на свои соцсети</div>
             </div>
-            <button type="submit" class="btn btn-primary mb-3">Отправить</button>
+            <button type="button" class="btn btn-primary mb-3" id="submitProfileFormButton">Отправить</button>
         </form>
     {{else}}
     <div class="alert alert-success" role="alert">
@@ -70,13 +70,19 @@
     {{end}}
     <script>
         (() => {
+            const profileForm = document.getElementById("profileForm");
+            const submitProfileFormButton = document.getElementById("submitProfileFormButton");
             const birthDateField = document.getElementById("birthDateField");
             const birthDatePicker = document.getElementById("birthDatePicker");
             const birthDatePickerButton = document.getElementById("birthDatePickerButton");
 
-            if (!birthDateField || !birthDatePicker || !birthDatePickerButton) {
+            if (!profileForm || !submitProfileFormButton || !birthDateField || !birthDatePicker || !birthDatePickerButton) {
                 return;
             }
+
+            submitProfileFormButton.addEventListener("click", () => {
+                profileForm.requestSubmit();
+            });
 
             birthDatePickerButton.addEventListener("click", () => {
                 if (typeof birthDatePicker.showPicker === "function") {

@@ -157,6 +157,9 @@ func (v views) profileForm(g *gin.Context) {
 		return
 	}
 	if user.Status == model.UserStatusActive {
+		groupMessage := tgbotapi.NewMessage(v.groupTelegramID, v.templator.NewFormMessage(user, form))
+		groupMessage.ParseMode = tgbotapi.ModeHTML
+		v.sendToBot(groupMessage)
 		g.Redirect(http.StatusFound, "/profile")
 		return
 	}

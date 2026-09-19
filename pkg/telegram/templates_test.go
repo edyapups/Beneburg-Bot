@@ -16,7 +16,7 @@ func TestLoginCommandReplyUsesDomainWithPort(t *testing.T) {
 	}
 }
 
-func TestNewFormMessageForActiveUserContainsOnlyProfileLink(t *testing.T) {
+func TestNewFormMessageForActiveUserContainsCollapsedFormAndProfileLink(t *testing.T) {
 	templator := NewTemplator("https://beneburg.example")
 	user := &model.User{
 		TelegramID: 42,
@@ -26,7 +26,7 @@ func TestNewFormMessageForActiveUserContainsOnlyProfileLink(t *testing.T) {
 
 	message := templator.NewFormMessage(user, form)
 
-	const expectedMessage = "<b>Участник изменил анкету.</b>\nhttps://beneburg.example/user/42"
+	const expectedMessage = "<b>Участник изменил анкету:</b>\n<blockquote expandable><b>Имя</b>:\nАнна\n\n<b>Пол</b>:\nженский\n\n<b>Ссылка на профиль:</b> https://beneburg.example/user/42</blockquote>"
 	if message != expectedMessage {
 		t.Fatalf("NewFormMessage() = %q, want %q", message, expectedMessage)
 	}

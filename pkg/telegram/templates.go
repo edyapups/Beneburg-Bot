@@ -83,8 +83,12 @@ func (t templator) NewFormPoll() string {
 func (t templator) NewFormMessage(user *model.User, form *model.Form) string {
 	stringBuilder := strings.Builder{}
 	if user.Status == model.UserStatusActive {
-		stringBuilder.WriteString("<b>Участник изменил анкету.</b>\n")
+		stringBuilder.WriteString("<b>Участник изменил анкету:</b>\n")
+		stringBuilder.WriteString("<blockquote expandable>")
+		stringBuilder.WriteString(t.FormInfo(form))
+		stringBuilder.WriteString("\n\n<b>Ссылка на профиль:</b> ")
 		stringBuilder.WriteString(html.EscapeString(t.UserPageLink(user)))
+		stringBuilder.WriteString("</blockquote>")
 		return stringBuilder.String()
 	}
 
