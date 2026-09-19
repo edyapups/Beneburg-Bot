@@ -31,6 +31,8 @@ type views struct {
 	groupTelegramID int64
 }
 
+const birthDateLayout = "02.01.2006"
+
 func (v views) RegisterRoutes(router gin.IRouter) {
 	router.GET("/", v.index)
 	router.GET("/user/:user_telegram_id", v.user)
@@ -108,7 +110,7 @@ func (v views) profileForm(g *gin.Context) {
 	}
 	birthDateFormValue, ok := g.GetPostForm("birth_date")
 	if ok && birthDateFormValue != "" {
-		birthDate, err := time.Parse(time.DateOnly, birthDateFormValue)
+		birthDate, err := parseBirthDate(birthDateFormValue)
 		if err != nil {
 			v.logger.Named("profileForm").Error("Error parsing birth date", zap.Error(err))
 			g.Redirect(http.StatusFound, "/profile")
@@ -160,6 +162,10 @@ func (v views) profileForm(g *gin.Context) {
 	v.sendToBot(adminMessage)
 
 	g.Redirect(http.StatusFound, "/profile")
+}
+
+func parseBirthDate(value string) (time.Time, error) {
+	return time.Parse(birthDateLayout, value)
 }
 
 func (v views) user(g *gin.Context) {

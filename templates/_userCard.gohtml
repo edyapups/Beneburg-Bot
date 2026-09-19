@@ -13,7 +13,7 @@
               {{ .Name }}
                 {{ with .BirthDate }}
                     <span class="badge bg-secondary fs-6 ">
-                        {{ .Format "02.01.2006" }}
+                        {{ $.AgeText }}
                     </span>
                 {{ end }}
                 <p class="fw-light fs-6 text-secondary">

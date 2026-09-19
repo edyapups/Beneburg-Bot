@@ -147,7 +147,7 @@ func (t templator) FormInfo(form *model.Form) string {
 	stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%s", model.UserNameDescription, html.EscapeString(form.Name)))
 	if form.BirthDate != nil {
 		AddDelimiter(&stringBuilder)
-		stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%s", model.UserBirthDateDescription, form.BirthDate.Format("02.01.2006")))
+		stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%s, %s", model.UserBirthDateDescription, form.BirthDate.Format("02.01.2006"), form.AgeText()))
 	}
 	AddDelimiter(&stringBuilder)
 	stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%s", model.UserGenderDescription, html.EscapeString(form.Gender)))

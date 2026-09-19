@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 const TableNameForm = "forms"
 
@@ -29,6 +32,47 @@ type Form struct {
 	Contacts    *string    `json:"contacts"`
 
 	Status string `json:"status"`
+}
+
+// Age returns the user's age in full years as of today.
+func (u *Form) Age() int {
+	return u.AgeAt(time.Now())
+}
+
+// AgeText returns the user's age with the correct Russian declension.
+func (u *Form) AgeText() string {
+	age := u.Age()
+	return fmt.Sprintf("%d %s", age, ageSuffix(age))
+}
+
+// AgeAt returns the user's age in full years on the supplied date.
+// It compares calendar dates, so the age increases on the birthday itself.
+func (u *Form) AgeAt(date time.Time) int {
+	if u == nil || u.BirthDate == nil {
+		return 0
+	}
+
+	age := date.Year() - u.BirthDate.Year()
+	if date.Month() < u.BirthDate.Month() || (date.Month() == u.BirthDate.Month() && date.Day() < u.BirthDate.Day()) {
+		age--
+	}
+	return age
+}
+
+func ageSuffix(age int) string {
+	lastTwoDigits := age % 100
+	if lastTwoDigits >= 11 && lastTwoDigits <= 14 {
+		return "лет"
+	}
+
+	switch age % 10 {
+	case 1:
+		return "год"
+	case 2, 3, 4:
+		return "года"
+	default:
+		return "лет"
+	}
 }
 
 func (u *Form) RuGender() string {
