@@ -1,2 +1,4 @@
-/.env.local
+/tmp/.env.local
 /.env.prod
+tmp/
+.idea/

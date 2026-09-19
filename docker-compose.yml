@@ -1,6 +1,7 @@
 services:
   server:
     container_name: server
+    image: ${IMAGE:-beneburg:local}
     environment:
       - SQLITE_PATH=/data/beneburg.db
       - BOT_TOKEN

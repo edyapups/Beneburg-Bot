@@ -28,3 +28,17 @@ On the host that can reach the old MySQL server, run
 It produces three JSONL files without SQL or credentials. Copy that directory
 to the new host and run `scripts/mysql_export_to_sqlite.py export beneburg.db`.
 The converter refuses to overwrite an existing database.
+
+## Release without a container registry
+
+Create `/opt/beneburg/.env.local` on the target server with the bot secrets.
+Then from a clean local worktree run:
+
+```bash
+RELEASE_HOST=deploy@example.com scripts/release.sh v1.0.0
+```
+
+The script creates an annotated tag, builds `beneburg:v1.0.0` locally, streams
+it to `docker load` over SSH, starts it remotely without rebuilding, and pushes
+the tag only after deployment succeeds. To initialise a fresh server with an
+imported database, add `RELEASE_SQLITE_DB=$PWD/beneburg.db` to that first run.
