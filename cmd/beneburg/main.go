@@ -6,16 +6,21 @@ import (
 	"beneburg/pkg/telegram"
 	"beneburg/pkg/views"
 	"context"
+	"errors"
+	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -33,16 +38,32 @@ func main() {
 }
 
 func run(logger *zap.Logger) error {
+	if len(os.Args) > 1 {
+		if os.Args[1] != "migrate-sqlite" {
+			return fmt.Errorf("unknown command %q", os.Args[1])
+		}
+		return runSQLiteImport(os.Args[2:])
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	config, err := loadConfig()
-	logger.Info("config loaded", zap.Any("config", config))
+	if err != nil {
+		return err
+	}
 
 	// Creating database connection
 	db, err := database.NewDatabase(config.Database.DataSourceName, logger.Named("database"))
 	if err != nil {
 		return err
+	}
+	defer db.Close()
+	completed, err := db.ImportCompleted(ctx)
+	if err != nil {
+		return err
+	}
+	if !completed {
+		return errors.New("PostgreSQL import is incomplete; refusing to start bot")
 	}
 
 	// Making migrations
@@ -98,6 +119,15 @@ func run(logger *zap.Logger) error {
 	router.Static("/assets", "./assets")
 	router.LoadHTMLGlob("templates/*")
 	router.Use(cors.Default())
+	router.GET("/healthz", func(request *gin.Context) {
+		pingContext, cancelPing := context.WithTimeout(request.Request.Context(), 2*time.Second)
+		defer cancelPing()
+		if err := db.Ping(pingContext); err != nil {
+			request.Status(http.StatusServiceUnavailable)
+			return
+		}
+		request.Status(http.StatusNoContent)
+	})
 
 	// Configuring API
 	var tokenAuthMiddleware middleware.TokenAuth
@@ -126,11 +156,10 @@ func run(logger *zap.Logger) error {
 	viewsModule.RegisterProfile(profileGroup)
 
 	// Starting server
+	httpServer := &http.Server{Addr: ":8080", Handler: router}
+	serverErrors := make(chan error, 1)
 	go func() {
-		err := router.Run()
-		if err != nil {
-			logger.Error("ListenAndServe", zap.Error(err))
-		}
+		serverErrors <- httpServer.ListenAndServe()
 	}()
 
 	logger.Info("Server started")
@@ -138,19 +167,55 @@ func run(logger *zap.Logger) error {
 
 	// Waiting for signal
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
 	select {
+	case err := <-serverErrors:
+		return fmt.Errorf("HTTP server stopped: %w", err)
 	case sig := <-sigs:
 		logger.Info("Received signal", zap.String("signal", sig.String()))
 		cancel()
-		select {
-		// TODO: wait for all goroutines to finish
-		case <-time.After(time.Second * 4):
-			return fmt.Errorf("timeout while waiting for context to be done")
-		}
+		shutdownContext, stop := context.WithTimeout(context.Background(), 4*time.Second)
+		defer stop()
+		return httpServer.Shutdown(shutdownContext)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func runSQLiteImport(arguments []string) error {
+	command := flag.NewFlagSet("migrate-sqlite", flag.ContinueOnError)
+	sourcePath := command.String("source", "/legacy/beneburg.db", "read-only SQLite source")
+	archiveDir := command.String("archive", "/archive", "archive directory")
+	if err := command.Parse(arguments); err != nil {
+		return err
+	}
+	if command.NArg() != 0 {
+		return errors.New("unexpected SQLite import arguments")
+	}
+	postgresURL := os.Getenv("DATABASE_URL")
+	if err := validateReleaseDatabaseURL(postgresURL); err != nil {
+		return err
+	}
+	result, err := database.ImportSQLite(context.Background(), postgresURL, *sourcePath, *archiveDir)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("SQLite import completed: already_done=%t users=%d tokens=%d forms=%d sha256=%s\n",
+		result.AlreadyDone, result.Counts.Users, result.Counts.Tokens, result.Counts.Forms, result.SourceSHA256)
+	return nil
+}
+
+func validateReleaseDatabaseURL(databaseURL string) error {
+	config, err := pgx.ParseConfig(databaseURL)
+	if err != nil || config.Host != "postgres" || config.Port != 5432 {
+		return errors.New("DATABASE_URL must target postgres:5432 in the Compose network")
+	}
+	if config.User != os.Getenv("POSTGRES_USER") ||
+		config.Password != os.Getenv("POSTGRES_PASSWORD") ||
+		config.Database != os.Getenv("POSTGRES_DB") {
+		return errors.New("DATABASE_URL credentials or database name do not match POSTGRES_* variables")
+	}
+	return nil
 }
 
 type Config struct {
@@ -174,13 +239,11 @@ func loadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	dir, _ := os.UserHomeDir()
-	fmt.Printf("os.UserHomeDir() = %s\n", dir)
-	home := os.Getenv("HOME")
-	fmt.Printf("os.Getenv(\"HOME\") = %s\n", home)
-
 	// Loading config
-	dbPath := os.Getenv("SQLITE_PATH")
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return nil, errors.New("DATABASE_URL is required")
+	}
 	onlyMakeMigrations := os.Getenv("ONLY_MAKE_MIGRATIONS") == "true"
 	botToken := os.Getenv("BOT_TOKEN")
 	noAuth := os.Getenv("NO_AUTH") == "true"
@@ -197,15 +260,12 @@ func loadConfig() (*Config, error) {
 	}
 	inviteLink := os.Getenv("INVITE_LINK")
 
-	if dbPath == "" {
-		dbPath = "beneburg.db"
-	}
 	return &Config{
 		Database: struct {
 			DataSourceName     string
 			OnlyMakeMigrations bool
 		}{
-			DataSourceName:     dbPath,
+			DataSourceName:     databaseURL,
 			OnlyMakeMigrations: onlyMakeMigrations,
 		},
 		Telegram: struct {

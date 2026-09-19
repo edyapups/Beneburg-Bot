@@ -4,6 +4,7 @@ import (
 	"beneburg/pkg/database/model"
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,4 +40,10 @@ func TestDatabaseSQLite(t *testing.T) {
 	require.Equal(t, form.ID, actual.ID)
 	require.Equal(t, int64(10), actual.User.TelegramID)
 	require.WithinDuration(t, time.Now(), token.ExpireAt, 25*time.Hour)
+}
+
+func TestInvalidPostgresURLDoesNotExposePassword(t *testing.T) {
+	_, err := NewDatabase("postgres://user:private-password@%invalid", nil)
+	require.Error(t, err)
+	require.False(t, strings.Contains(err.Error(), "private-password"))
 }

@@ -1,4 +1,4 @@
-FROM golang:1.19.2-buster AS build
+FROM golang:1.23-bookworm AS build
 
 WORKDIR /usr/src/app
 
@@ -12,7 +12,7 @@ RUN go build -o /beneburg ./cmd/beneburg
 
 
 ## Deploy
-FROM gcr.io/distroless/base-debian10
+FROM gcr.io/distroless/base-debian12
 
 WORKDIR /
 
