@@ -1,6 +1,7 @@
 package main
 
 import (
+	"beneburg/pkg/backup"
 	"beneburg/pkg/database"
 	"beneburg/pkg/middleware"
 	"beneburg/pkg/scheduler"
@@ -85,7 +86,8 @@ func run(logger *zap.Logger) error {
 		if err != nil {
 			return err
 		}
-		bot := telegram.NewBot(ctx, botAPI, db, config.Telegram.AdminID, config.Telegram.GroupID, config.Telegram.InviteLink, config.domain)
+		backupCreator := backup.NewPostgresCreator(config.Database.DataSourceName)
+		bot := telegram.NewBotWithBackupCreator(ctx, botAPI, db, config.Telegram.AdminID, config.Telegram.GroupID, config.Telegram.InviteLink, config.domain, backupCreator)
 		SendFunc = bot.GetSendFunc()
 		logger = logger.WithOptions(zap.Hooks(func(entry zapcore.Entry) error {
 			if entry.Level < zapcore.WarnLevel {

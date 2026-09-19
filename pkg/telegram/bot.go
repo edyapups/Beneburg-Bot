@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"beneburg/pkg/backup"
 	"beneburg/pkg/database"
 	"beneburg/pkg/database/model"
 	"context"
@@ -11,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,6 +32,8 @@ type botManager struct {
 	adminID    int64
 	groupID    int64
 	inviteLink string
+	backup     backup.Creator
+	backupBusy atomic.Bool
 
 	updatesChan  chan tgbotapi.Update
 	messagesChan chan tgbotapi.Chattable
@@ -39,6 +43,15 @@ type botManager struct {
 }
 
 func NewBot(ctx context.Context, bot TgBotAPI, db database.Database, adminID int64, groupID int64, inviteLink string, domain string) Bot {
+	return newBot(ctx, bot, db, adminID, groupID, inviteLink, domain, nil)
+}
+
+// NewBotWithBackupCreator is intended for tests and custom runtime wiring.
+func NewBotWithBackupCreator(ctx context.Context, bot TgBotAPI, db database.Database, adminID int64, groupID int64, inviteLink string, domain string, creator backup.Creator) Bot {
+	return newBot(ctx, bot, db, adminID, groupID, inviteLink, domain, creator)
+}
+
+func newBot(ctx context.Context, bot TgBotAPI, db database.Database, adminID int64, groupID int64, inviteLink string, domain string, creator backup.Creator) Bot {
 	return &botManager{
 		bot:          bot,
 		templator:    NewTemplator(domain),
@@ -47,6 +60,7 @@ func NewBot(ctx context.Context, bot TgBotAPI, db database.Database, adminID int
 		adminID:      adminID,
 		groupID:      groupID,
 		inviteLink:   inviteLink,
+		backup:       creator,
 		updatesChan:  make(chan tgbotapi.Update, 60),
 		messagesChan: make(chan tgbotapi.Chattable, 60),
 	}
@@ -256,6 +270,44 @@ func (b *botManager) processPrivateCommand(message *tgbotapi.Message) {
 		b.processLoginCommand(message)
 		return
 	}
+	if message.Command() == "get_backup" {
+		b.processGetBackupCommand(message)
+		return
+	}
+}
+
+func (b *botManager) processGetBackupCommand(message *tgbotapi.Message) {
+	if message.From == nil || message.From.ID != b.adminID {
+		b.logger.Named("processGetBackupCommand").Warn("Backup command from non-administrator")
+		return
+	}
+	if b.backup == nil {
+		b.logger.Named("processGetBackupCommand").Error("Backup creator is not configured")
+		b.send(tgbotapi.NewMessage(message.Chat.ID, "Создание резервной копии сейчас недоступно."))
+		return
+	}
+	if !b.backupBusy.CompareAndSwap(false, true) {
+		b.send(tgbotapi.NewMessage(message.Chat.ID, "Резервная копия уже создаётся. Подождите завершения."))
+		return
+	}
+
+	b.send(tgbotapi.NewMessage(message.Chat.ID, "Создаю резервную копию базы данных…"))
+	go func(chatID int64) {
+		defer b.backupBusy.Store(false)
+		backupContext, cancel := context.WithTimeout(b.ctx, 5*time.Minute)
+		defer cancel()
+
+		archive, err := b.backup.Create(backupContext)
+		if err != nil {
+			b.logger.Named("processGetBackupCommand").Error("Create database backup", zap.Error(err))
+			b.send(tgbotapi.NewMessage(chatID, "Не удалось создать резервную копию базы данных."))
+			return
+		}
+
+		document := tgbotapi.NewDocument(chatID, tgbotapi.FileBytes{Name: archive.Name, Bytes: archive.Bytes})
+		document.Caption = "Резервная копия базы данных"
+		b.send(document)
+	}(message.Chat.ID)
 }
 
 func (b *botManager) processInfoCommand(message *tgbotapi.Message) {

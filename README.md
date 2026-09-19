@@ -51,3 +51,27 @@ PostgreSQL integration tests create an isolated schema in the database named by
 ```bash
 TEST_POSTGRES_DSN='postgres://.../testdb?sslmode=disable' go test -tags=integration ./pkg/database
 ```
+
+## Local environment from a backup
+
+Copy `.env.dev.example` to `.env.dev` and fill it with a **test** bot token,
+test administrator and group IDs, and local PostgreSQL credentials. Do not use
+production Telegram credentials in this file.
+
+Start a clean local environment with an empty database:
+
+```bash
+scripts/start-dev.sh
+```
+
+The bot is then reachable with the test token. Send `/get_backup` to it from
+the private chat of the configured test administrator, download the returned
+`.dump` document, and create a new local environment restored from it:
+
+```bash
+scripts/start-dev.sh /path/to/beneburg-YYYYMMDDTHHMMSSZ.dump
+```
+
+Each command recreates only the `beneburg-dev` Compose project's PostgreSQL
+volume. It never reads `.env.local` and does not modify production containers
+or volumes.

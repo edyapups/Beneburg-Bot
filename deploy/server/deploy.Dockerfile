@@ -8,11 +8,13 @@ RUN go mod download && go mod verify
 COPY pkg ./pkg
 COPY cmd ./cmd
 
-RUN go build -o /beneburg ./cmd/beneburg
+RUN CGO_ENABLED=0 go build -o /beneburg ./cmd/beneburg
 
 
 ## Deploy
-FROM gcr.io/distroless/base-debian12
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates postgresql16-client tzdata
 
 WORKDIR /
 

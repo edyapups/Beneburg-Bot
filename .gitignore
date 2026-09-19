@@ -1,4 +1,5 @@
 /tmp/.env.local
 /.env.prod
+/.env.dev
 tmp/
 .idea/
