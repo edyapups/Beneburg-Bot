@@ -7,7 +7,6 @@ import (
 	"beneburg/pkg/views"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -20,7 +19,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -38,12 +36,6 @@ func main() {
 }
 
 func run(logger *zap.Logger) error {
-	if len(os.Args) > 1 {
-		if os.Args[1] != "migrate-sqlite" {
-			return fmt.Errorf("unknown command %q", os.Args[1])
-		}
-		return runSQLiteImport(os.Args[2:])
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -58,14 +50,6 @@ func run(logger *zap.Logger) error {
 		return err
 	}
 	defer db.Close()
-	completed, err := db.ImportCompleted(ctx)
-	if err != nil {
-		return err
-	}
-	if !completed {
-		return errors.New("PostgreSQL import is incomplete; refusing to start bot")
-	}
-
 	// Making migrations
 	err = db.Migrate(ctx)
 	if err != nil {
@@ -180,42 +164,6 @@ func run(logger *zap.Logger) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-func runSQLiteImport(arguments []string) error {
-	command := flag.NewFlagSet("migrate-sqlite", flag.ContinueOnError)
-	sourcePath := command.String("source", "/legacy/beneburg.db", "read-only SQLite source")
-	archiveDir := command.String("archive", "/archive", "archive directory")
-	if err := command.Parse(arguments); err != nil {
-		return err
-	}
-	if command.NArg() != 0 {
-		return errors.New("unexpected SQLite import arguments")
-	}
-	postgresURL := os.Getenv("DATABASE_URL")
-	if err := validateReleaseDatabaseURL(postgresURL); err != nil {
-		return err
-	}
-	result, err := database.ImportSQLite(context.Background(), postgresURL, *sourcePath, *archiveDir)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("SQLite import completed: already_done=%t users=%d tokens=%d forms=%d sha256=%s\n",
-		result.AlreadyDone, result.Counts.Users, result.Counts.Tokens, result.Counts.Forms, result.SourceSHA256)
-	return nil
-}
-
-func validateReleaseDatabaseURL(databaseURL string) error {
-	config, err := pgx.ParseConfig(databaseURL)
-	if err != nil || config.Host != "postgres" || config.Port != 5432 {
-		return errors.New("DATABASE_URL must target postgres:5432 in the Compose network")
-	}
-	if config.User != os.Getenv("POSTGRES_USER") ||
-		config.Password != os.Getenv("POSTGRES_PASSWORD") ||
-		config.Database != os.Getenv("POSTGRES_DB") {
-		return errors.New("DATABASE_URL credentials or database name do not match POSTGRES_* variables")
-	}
-	return nil
 }
 
 type Config struct {

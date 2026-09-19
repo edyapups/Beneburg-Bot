@@ -3,19 +3,13 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-Usage: RELEASE_HOST=user@host scripts/release.sh [--sqlite-to-postgres-migrate] TAG
+Usage: RELEASE_HOST=user@host scripts/release.sh TAG
 
-The migration flag is required exactly once for the first SQLite to PostgreSQL
-release. Stop the old bot container manually before running it. Later releases
-use scripts/release.sh TAG. Secrets stay in the server's RELEASE_ENV_FILE.
+Build and release a PostgreSQL-backed bot. Secrets stay in the server's
+RELEASE_ENV_FILE.
 EOF
 }
 
-migration_mode=normal
-if [[ "${1:-}" == --sqlite-to-postgres-migrate ]]; then
-  migration_mode=migrate
-  shift
-fi
 if [[ $# -ne 1 || "$1" == --* ]]; then
   usage
   exit 2
@@ -34,7 +28,6 @@ image="$image_repo:$tag"
 [[ "$release_env_file" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "Invalid RELEASE_ENV_FILE" >&2; exit 2; }
 [[ "$image_repo" =~ ^[A-Za-z0-9_./-]+$ ]] || { echo "Invalid RELEASE_IMAGE_REPO" >&2; exit 2; }
 [[ "$release_platform" =~ ^[A-Za-z0-9_/-]+$ ]] || { echo "Invalid RELEASE_PLATFORM" >&2; exit 2; }
-[[ -z "${RELEASE_SQLITE_DB:-}" ]] || { echo "RELEASE_SQLITE_DB is unsupported for PostgreSQL releases" >&2; exit 2; }
 [[ -f docker-compose.yml && -f scripts/release-remote.sh ]] || { echo "Run from the repository root" >&2; exit 2; }
 [[ -z "$(git status --porcelain)" ]] || { echo "Refusing to release a dirty worktree" >&2; exit 1; }
 
@@ -42,7 +35,7 @@ if git show-ref --verify --quiet "refs/tags/$tag"; then
   [[ "$(git rev-list -n 1 "$tag")" == "$(git rev-parse HEAD)" ]] || { echo "Tag $tag points to another commit" >&2; exit 1; }
 fi
 
-remote_command="bash -s -- '$migration_mode' '$image' '$release_dir' '$release_env_file' '$release_platform'"
+remote_command="bash -s -- '$image' '$release_dir' '$release_env_file' '$release_platform'"
 ssh "$RELEASE_HOST" "$remote_command preflight" < scripts/release-remote.sh
 
 candidate="$release_dir/docker-compose.yml.next-$tag"

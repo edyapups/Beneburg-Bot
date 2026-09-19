@@ -1,43 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mode=$1
-image=$2
-release_dir=$3
-env_file=$4
-platform=$5
-action=$6
+image=$1
+release_dir=$2
+env_file=$3
+platform=$4
+action=$5
 cd "$release_dir"
 
 compose() {
   IMAGE="$image" PLATFORM="$platform" docker compose --env-file "$env_file" "$@"
-}
-
-source_volume() {
-  if docker container inspect server >/dev/null 2>&1; then
-    running=$(docker inspect --format '{{.State.Running}}' server)
-    current_image=$(docker inspect --format '{{.Config.Image}}' server)
-    legacy_volume=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' server)
-    if [[ "$running" == true && "$current_image" != "$image" ]]; then
-      echo "Old server container is still running; stop it manually before migration" >&2
-      exit 1
-    fi
-    if [[ "$running" == true && -n "$legacy_volume" ]]; then
-      echo "SQLite server container is still running" >&2
-      exit 1
-    fi
-    if [[ -n "$legacy_volume" ]]; then
-      printf '%s\n' "$legacy_volume"
-      return
-    fi
-  fi
-  if [[ -f legacy-sqlite-volume ]]; then
-    read -r legacy_volume < legacy-sqlite-volume
-    printf '%s\n' "$legacy_volume"
-    return
-  fi
-  echo "Cannot find the old SQLite volume; refusing migration" >&2
-  exit 1
 }
 
 preflight() {
@@ -45,16 +17,6 @@ preflight() {
   command -v docker >/dev/null
   command -v curl >/dev/null
   command -v flock >/dev/null
-  if [[ "$mode" == migrate ]]; then
-    legacy_volume=$(source_volume)
-    [[ -n "$legacy_volume" ]] || { echo "SQLite volume name is empty" >&2; exit 1; }
-    docker volume inspect "$legacy_volume" >/dev/null
-  else
-    if docker container inspect server >/dev/null 2>&1; then
-      legacy_volume=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' server)
-      [[ -z "$legacy_volume" ]] || { echo "SQLite container detected; use --sqlite-to-postgres-migrate" >&2; exit 1; }
-    fi
-  fi
 }
 
 wait_for_postgres() {
@@ -80,43 +42,9 @@ flock -n 9 || { echo "Another release is running on this server" >&2; exit 1; }
 candidate="docker-compose.yml.next-${image##*:}"
 [[ -f "$candidate" ]] || { echo "Staged Compose file is missing" >&2; exit 1; }
 
-if [[ "$mode" == migrate ]]; then
-  legacy_volume=$(source_volume)
-  if docker container inspect server >/dev/null 2>&1; then
-    old_mount=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' server)
-    if [[ -n "$old_mount" ]]; then
-      docker update --restart=no server >/dev/null
-      if [[ ! -f legacy-server-image ]]; then
-        docker inspect --format '{{.Config.Image}}' server > legacy-server-image
-        chmod 600 legacy-server-image
-      fi
-    fi
-  fi
-  if [[ ! -f docker-compose.yml.before-postgres ]]; then
-    [[ ! -f legacy-sqlite-volume ]] || { echo "Previous Compose backup is missing" >&2; exit 1; }
-    cp docker-compose.yml docker-compose.yml.before-postgres
-  fi
-  [[ -f legacy-server-image ]] || { echo "Old server image reference is missing" >&2; exit 1; }
-  printf '%s\n' "$legacy_volume" > legacy-sqlite-volume
-  chmod 600 legacy-sqlite-volume
-fi
 mv "$candidate" docker-compose.yml
 compose up -d --no-build postgres
 wait_for_postgres
-
-if [[ "$mode" == migrate ]]; then
-  legacy_volume=$(source_volume)
-  archive_dir="$release_dir/sqlite-archive"
-  mkdir -p "$archive_dir"
-  chmod 700 "$archive_dir"
-  postgres_container=$(compose ps -q postgres)
-  network=$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}' "$postgres_container")
-  [[ -n "$network" ]] || { echo "PostgreSQL network not found" >&2; exit 1; }
-  docker run --rm --env-file "$release_dir/$env_file" --network "$network" \
-    --mount "type=volume,source=$legacy_volume,target=/legacy,readonly" \
-    --mount "type=bind,source=$archive_dir,target=/archive" \
-    "$image" migrate-sqlite --source /legacy/beneburg.db --archive /archive
-fi
 
 cleanup_server() {
   compose stop server >/dev/null 2>&1 || true

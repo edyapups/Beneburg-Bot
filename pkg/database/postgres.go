@@ -6,8 +6,8 @@ import (
 	"fmt"
 )
 
-// The importer and the migration runner share this lock. PostgreSQL releases it
-// automatically if the transaction or its connection ends unexpectedly.
+// PostgreSQL releases this migration lock automatically if the transaction or
+// its connection ends unexpectedly.
 const migrationLockID int64 = 715723661091
 
 const postgresSchema = `
@@ -47,35 +47,8 @@ CREATE TABLE forms (
 );
 CREATE INDEX forms_user_created_at_idx ON forms(user_telegram_id, created_at DESC);
 CREATE INDEX tokens_uuid_idx ON tokens(uuid);
-CREATE TABLE sqlite_imports (
-    source_sha256 TEXT PRIMARY KEY,
-    completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    users_count BIGINT NOT NULL,
-    tokens_count BIGINT NOT NULL,
-    forms_count BIGINT NOT NULL
-);
 INSERT INTO schema_migrations(version) VALUES (1);
 `
-
-func (d *database) ImportCompleted(ctx context.Context) (bool, error) {
-	if !d.postgres {
-		return false, fmt.Errorf("import marker requires PostgreSQL")
-	}
-	var count int64
-	var exists bool
-	err := d.db.QueryRowContext(ctx, `SELECT to_regclass('sqlite_imports') IS NOT NULL`).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("check SQLite import marker: %w", err)
-	}
-	if !exists {
-		return false, nil
-	}
-	err = d.db.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_imports`).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("read SQLite import marker: %w", err)
-	}
-	return count == 1, nil
-}
 
 func migratePostgres(ctx context.Context, connection *sql.DB) error {
 	transaction, err := connection.BeginTx(ctx, nil)
@@ -92,7 +65,10 @@ func migratePostgres(ctx context.Context, connection *sql.DB) error {
 		return fmt.Errorf("check PostgreSQL schema: %w", err)
 	}
 	if !exists {
-		return fmt.Errorf("PostgreSQL schema is absent; run the SQLite import release first")
+		if _, err := transaction.ExecContext(ctx, postgresSchema); err != nil {
+			return fmt.Errorf("create PostgreSQL schema: %w", err)
+		}
+		return transaction.Commit()
 	}
 	var version int
 	err = transaction.QueryRowContext(ctx, `SELECT COALESCE(MAX(version), 0) FROM schema_migrations`).Scan(&version)

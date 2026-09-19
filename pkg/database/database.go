@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	_ "github.com/mattn/go-sqlite3"
 	"go.uber.org/zap"
 )
 
@@ -49,15 +48,13 @@ type Store interface {
 	Database
 	Ping(context.Context) error
 	Close() error
-	ImportCompleted(context.Context) (bool, error)
 }
 
 type database struct {
-	db       *sql.DB
-	logger   *zap.Logger
-	uuidGen  func() uuid.UUID
-	qb       squirrel.StatementBuilderType
-	postgres bool
+	db      *sql.DB
+	logger  *zap.Logger
+	uuidGen func() uuid.UUID
+	qb      squirrel.StatementBuilderType
 }
 
 var _ Database = (*database)(nil)
@@ -78,15 +75,11 @@ func NewDatabase(dsn string, logger *zap.Logger) (Store, error) {
 		return nil, errors.New("cannot connect to PostgreSQL; check DATABASE_URL and server availability")
 	}
 	return &database{
-		db:       db,
-		logger:   logger,
-		uuidGen:  uuid.New,
-		qb:       squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
-		postgres: true,
+		db:      db,
+		logger:  logger,
+		uuidGen: uuid.New,
+		qb:      squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}, nil
-}
-func NewDatabaseWithDB(db *sql.DB, logger *zap.Logger) Database {
-	return &database{db: db, logger: logger, uuidGen: uuid.New, qb: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question)}
 }
 
 func (d *database) Ping(ctx context.Context) error {
@@ -98,36 +91,7 @@ func (d *database) Close() error {
 }
 
 func (d *database) Migrate(ctx context.Context) error {
-	if d.postgres {
-		return migratePostgres(ctx, d.db)
-	}
-	if _, err := d.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)`); err != nil {
-		return err
-	}
-	for _, migration := range migrations {
-		var found int
-		if err := d.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, migration.version).Scan(&found); err != nil {
-			return err
-		}
-		if found != 0 {
-			continue
-		}
-		tx, err := d.db.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, migration.sql); err == nil {
-			_, err = tx.ExecContext(ctx, `INSERT INTO schema_migrations(version) VALUES(?)`, migration.version)
-		}
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err = tx.Commit(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return migratePostgres(ctx, d.db)
 }
 
 func (d *database) CreateUser(ctx context.Context, u *model.User) (*model.User, error) {
