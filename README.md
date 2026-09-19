@@ -38,7 +38,8 @@ Then from a clean local worktree run:
 RELEASE_HOST=deploy@example.com scripts/release.sh v1.0.0
 ```
 
-The script creates an annotated tag, builds `beneburg:v1.0.0` locally, streams
-it to `docker load` over SSH, starts it remotely without rebuilding, and pushes
-the tag only after deployment succeeds. To initialise a fresh server with an
-imported database, add `RELEASE_SQLITE_DB=$PWD/beneburg.db` to that first run.
+The script creates an annotated tag, builds a `linux/amd64` image locally,
+streams it to `docker load` over SSH, starts it remotely without rebuilding,
+and pushes the tag only after deployment succeeds. To initialise a fresh server
+with an imported database, add `RELEASE_SQLITE_DB=$PWD/beneburg.db` to that
+first run. The importer writes it to `/data/beneburg.db` without macOS xattrs.
