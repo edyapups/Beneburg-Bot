@@ -11,9 +11,11 @@
         <div class="card-body">
             <h5 class="card-title text-dark-emphasis">
               {{ .Name }}
-                <span class="badge bg-secondary fs-6 ">
-                    {{ .Age }}
-                </span>
+                {{ with .BirthDate }}
+                    <span class="badge bg-secondary fs-6 ">
+                        {{ .Format "02.01.2006" }}
+                    </span>
+                {{ end }}
                 <p class="fw-light fs-6 text-secondary">
                     {{ .User.FirstName }} {{ with .User.LastName }}{{.}}{{ end }}
                 </p>

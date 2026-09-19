@@ -15,9 +15,9 @@
             <span class="text-secondary h5">{{.}}</span>
         </div>
         {{end}}
-        {{with .Age}}
-        <div class="mb-3"><h4>Возраст:</h4>
-            <span class="text-secondary h5">{{.}}</span>
+        {{with .BirthDate}}
+        <div class="mb-3"><h4>Дата рождения:</h4>
+            <span class="text-secondary h5">{{ .Format "02.01.2006" }}</span>
         </div>
         {{end}}
         {{with .About}}

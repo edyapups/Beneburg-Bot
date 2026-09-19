@@ -18,15 +18,15 @@ type Form struct {
 	UserTelegramId int64      `json:"user_telegram_id"`
 	User           User       `json:"user"`
 
-	Name        string  `json:"name"`
-	Age         *int32  `json:"age"`
-	Gender      string  `json:"gender"`
-	About       *string `json:"about"`
-	Hobbies     *string `json:"hobbies"`
-	Work        *string `json:"work"`
-	Education   *string `json:"education"`
-	CoverLetter *string `json:"cover_letter"`
-	Contacts    *string `json:"contacts"`
+	Name        string     `json:"name"`
+	BirthDate   *time.Time `json:"birth_date"`
+	Gender      string     `json:"gender"`
+	About       *string    `json:"about"`
+	Hobbies     *string    `json:"hobbies"`
+	Work        *string    `json:"work"`
+	Education   *string    `json:"education"`
+	CoverLetter *string    `json:"cover_letter"`
+	Contacts    *string    `json:"contacts"`
 
 	Status string `json:"status"`
 }
@@ -49,7 +49,7 @@ func (u *Form) RuGender() string {
 
 const (
 	UserNameDescription        = "Имя"
-	UserAgeDescription         = "Возраст"
+	UserBirthDateDescription   = "Дата рождения"
 	UserGenderDescription      = "Пол"
 	UserAboutDescription       = "О себе"
 	UserHobbiesDescription     = "Хобби"

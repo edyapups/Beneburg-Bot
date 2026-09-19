@@ -87,6 +87,7 @@ func TestPostgresMigrateAndRepository(t *testing.T) {
 	form, err := store.CreateForm(ctx, &model.Form{
 		UserTelegramId: user.TelegramID,
 		Name:           "Test",
+		BirthDate:      ptr(time.Date(2000, time.January, 2, 0, 0, 0, 0, time.UTC)),
 		Status:         model.FormStatusAccepted,
 	})
 	require.NoError(t, err)
@@ -95,7 +96,47 @@ func TestPostgresMigrateAndRepository(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, form.ID, actual.ID)
 	require.Equal(t, user.TelegramID, actual.User.TelegramID)
+	require.Equal(t, form.BirthDate, actual.BirthDate)
 
 	_, err = store.AcceptForm(ctx, form.ID)
 	require.NoError(t, err)
+}
+
+func TestPostgresMigrationReplacesAgeWithBirthDate(t *testing.T) {
+	ctx := context.Background()
+	connection, err := sql.Open("pgx", isolatedPostgresURL(t))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, connection.Close()) })
+
+	_, err = connection.ExecContext(ctx, `
+CREATE TABLE schema_migrations (version BIGINT PRIMARY KEY);
+CREATE TABLE forms (id BIGINT PRIMARY KEY, age INTEGER);
+INSERT INTO schema_migrations(version) VALUES (2);
+`)
+	require.NoError(t, err)
+	require.NoError(t, migratePostgres(ctx, connection))
+
+	var ageColumnExists bool
+	err = connection.QueryRowContext(ctx, `
+SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = 'forms' AND column_name = 'age'
+)
+`).Scan(&ageColumnExists)
+	require.NoError(t, err)
+	require.False(t, ageColumnExists)
+
+	var birthDateColumnType string
+	err = connection.QueryRowContext(ctx, `
+SELECT data_type
+FROM information_schema.columns
+WHERE table_schema = current_schema() AND table_name = 'forms' AND column_name = 'birth_date'
+`).Scan(&birthDateColumnType)
+	require.NoError(t, err)
+	require.Equal(t, "date", birthDateColumnType)
+}
+
+func ptr[T any](value T) *T {
+	return &value
 }

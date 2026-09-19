@@ -145,9 +145,9 @@ func (t templator) UserPageLink(user *model.User) string {
 func (t templator) FormInfo(form *model.Form) string {
 	stringBuilder := strings.Builder{}
 	stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%s", model.UserNameDescription, html.EscapeString(form.Name)))
-	if form.Age != nil {
+	if form.BirthDate != nil {
 		AddDelimiter(&stringBuilder)
-		stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%d", model.UserAgeDescription, *form.Age))
+		stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%s", model.UserBirthDateDescription, form.BirthDate.Format("02.01.2006")))
 	}
 	AddDelimiter(&stringBuilder)
 	stringBuilder.WriteString(fmt.Sprintf("<b>%s</b>:\n%s", model.UserGenderDescription, html.EscapeString(form.Gender)))

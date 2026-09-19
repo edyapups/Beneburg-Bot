@@ -4,7 +4,6 @@ import (
 	"beneburg/pkg/database"
 	"beneburg/pkg/database/model"
 	"beneburg/pkg/telegram"
-	"beneburg/pkg/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -12,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Views interface {
@@ -106,15 +106,15 @@ func (v views) profileForm(g *gin.Context) {
 	if ok {
 		form.Name = nameFormValue
 	}
-	ageFormValue, ok := g.GetPostForm("age")
-	if ok {
-		convertedAge, err := strconv.Atoi(ageFormValue)
+	birthDateFormValue, ok := g.GetPostForm("birth_date")
+	if ok && birthDateFormValue != "" {
+		birthDate, err := time.Parse(time.DateOnly, birthDateFormValue)
 		if err != nil {
-			v.logger.Named("profileForm").Error("Error converting age", zap.Error(err))
+			v.logger.Named("profileForm").Error("Error parsing birth date", zap.Error(err))
 			g.Redirect(http.StatusFound, "/profile")
 			return
 		}
-		form.Age = utils.GetAddress(int32(convertedAge))
+		form.BirthDate = &birthDate
 	}
 	genderFormValue, ok := g.GetPostForm("gender")
 	if ok {

@@ -35,7 +35,7 @@ CREATE TABLE forms (
     deleted_at TIMESTAMPTZ,
     user_telegram_id BIGINT NOT NULL REFERENCES users(telegram_id),
     name TEXT NOT NULL,
-    age INTEGER,
+    birth_date DATE,
     gender TEXT NOT NULL DEFAULT 'undefined',
     about TEXT,
     hobbies TEXT,
@@ -80,6 +80,12 @@ CREATE INDEX job_runs_finished_at_idx ON job_runs(finished_at) WHERE status IN (
 INSERT INTO schema_migrations(version) VALUES (2);
 `
 
+const birthDateMigration = `
+ALTER TABLE forms DROP COLUMN IF EXISTS age;
+ALTER TABLE forms ADD COLUMN IF NOT EXISTS birth_date DATE;
+INSERT INTO schema_migrations(version) VALUES (3);
+`
+
 func migratePostgres(ctx context.Context, connection *sql.DB) error {
 	transaction, err := connection.BeginTx(ctx, nil)
 	if err != nil {
@@ -108,12 +114,17 @@ func migratePostgres(ctx context.Context, connection *sql.DB) error {
 	} else {
 		version = 1
 	}
-	if version > 2 {
+	if version > 3 {
 		return fmt.Errorf("unsupported PostgreSQL schema version %d", version)
 	}
 	if version < 2 {
 		if _, err := transaction.ExecContext(ctx, scheduledJobsMigration); err != nil {
 			return fmt.Errorf("apply PostgreSQL migration 2: %w", err)
+		}
+	}
+	if version < 3 {
+		if _, err := transaction.ExecContext(ctx, birthDateMigration); err != nil {
+			return fmt.Errorf("apply PostgreSQL migration 3: %w", err)
 		}
 	}
 	return transaction.Commit()

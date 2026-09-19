@@ -222,8 +222,8 @@ func (d *database) CreateForm(ctx context.Context, f *model.Form) (*model.Form, 
 		f.Status = model.FormStatusNew
 	}
 	query, arguments, err := d.qb.Insert("forms").
-		Columns("created_at", "updated_at", "user_telegram_id", "name", "age", "gender", "about", "hobbies", "work", "education", "cover_letter", "contacts", "status").
-		Values(f.CreatedAt, f.UpdatedAt, f.UserTelegramId, f.Name, f.Age, f.Gender, f.About, f.Hobbies, f.Work, f.Education, f.CoverLetter, f.Contacts, f.Status).
+		Columns("created_at", "updated_at", "user_telegram_id", "name", "birth_date", "gender", "about", "hobbies", "work", "education", "cover_letter", "contacts", "status").
+		Values(f.CreatedAt, f.UpdatedAt, f.UserTelegramId, f.Name, f.BirthDate, f.Gender, f.About, f.Hobbies, f.Work, f.Education, f.CoverLetter, f.Contacts, f.Status).
 		Suffix("RETURNING id").ToSql()
 	if err != nil {
 		return nil, err
@@ -329,7 +329,7 @@ func formColumns(p string) []string {
 		p += "."
 	}
 	cols := []string{}
-	for _, c := range []string{"id", "created_at", "updated_at", "deleted_at", "user_telegram_id", "name", "age", "gender", "about", "hobbies", "work", "education", "cover_letter", "contacts", "status"} {
+	for _, c := range []string{"id", "created_at", "updated_at", "deleted_at", "user_telegram_id", "name", "birth_date", "gender", "about", "hobbies", "work", "education", "cover_letter", "contacts", "status"} {
 		cols = append(cols, p+c)
 	}
 	for _, c := range userColumns("u") {
@@ -339,7 +339,7 @@ func formColumns(p string) []string {
 }
 func scanForm(s scanner) (*model.Form, error) {
 	f := new(model.Form)
-	e := s.Scan(&f.ID, &f.CreatedAt, &f.UpdatedAt, &f.DeletedAt, &f.UserTelegramId, &f.Name, &f.Age, &f.Gender, &f.About, &f.Hobbies, &f.Work, &f.Education, &f.CoverLetter, &f.Contacts, &f.Status, &f.User.ID, &f.User.CreatedAt, &f.User.UpdatedAt, &f.User.DeletedAt, &f.User.TelegramID, &f.User.Username, &f.User.FirstName, &f.User.LastName, &f.User.Status)
+	e := s.Scan(&f.ID, &f.CreatedAt, &f.UpdatedAt, &f.DeletedAt, &f.UserTelegramId, &f.Name, &f.BirthDate, &f.Gender, &f.About, &f.Hobbies, &f.Work, &f.Education, &f.CoverLetter, &f.Contacts, &f.Status, &f.User.ID, &f.User.CreatedAt, &f.User.UpdatedAt, &f.User.DeletedAt, &f.User.TelegramID, &f.User.Username, &f.User.FirstName, &f.User.LastName, &f.User.Status)
 	return f, e
 }
 func scanForms(rows *sql.Rows, err error) ([]*model.Form, error) {

@@ -10,8 +10,8 @@
                 <input required type="text" class="form-control" name="name" id="nameField" placeholder="Имя" {{ with .form.Name }} value="{{.}}" {{end}}>
             </div>
             <div class="mb-3">
-                <label class="form-label fs-5 fw-bold" for="ageField">Твой возраст?</label>
-                <input required type="number" class="form-control" name="age" id="ageField" placeholder="Возраст" {{ with .form.Age }}value="{{.}}" {{end}}>
+                <label class="form-label fs-5 fw-bold" for="birthDateField">Дата рождения</label>
+                <input type="date" class="form-control" name="birth_date" id="birthDateField" {{ with .form.BirthDate }}value="{{ .Format "2006-01-02" }}" {{ end }}>
             </div>
             <div class="mb-3">
                 <label class="form-label fs-5 fw-bold" for="genderField">Гендер</label>
