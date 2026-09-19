@@ -7,7 +7,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,9 +34,7 @@ func Test_TokenAuth(t *testing.T) {
 			HttpOnly: true,
 		})
 
-		dbMock.EXPECT().GetUserByToken(gomock.Any(), "test").Return(&model.User{
-			Model: gorm.Model{ID: 10},
-		}, nil).Times(1)
+		dbMock.EXPECT().GetUserByToken(gomock.Any(), "test").Return(&model.User{ID: 10}, nil).Times(1)
 
 		r.ServeHTTP(w, req)
 		assert.Equal(t, "10", w.Body.String())

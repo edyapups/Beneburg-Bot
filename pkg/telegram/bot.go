@@ -4,6 +4,7 @@ import (
 	"beneburg/pkg/database"
 	"beneburg/pkg/database/model"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -50,8 +51,6 @@ func NewBot(ctx context.Context, bot TgBotAPI, db database.Database, adminID int
 		messagesChan: make(chan tgbotapi.Chattable, 60),
 	}
 }
-
-var noRecordError = fmt.Errorf("record not found")
 
 func (b *botManager) SetLogger(logger *zap.Logger) {
 	b.logger = logger
@@ -268,7 +267,7 @@ func (b *botManager) processInfoCommand(message *tgbotapi.Message) {
 	}
 	user, err := b.db.GetUserByTelegramID(b.ctx, message.ReplyToMessage.From.ID)
 	if err != nil {
-		if errors.As(err, &noRecordError) {
+		if errors.Is(err, sql.ErrNoRows) {
 			b.logger.Named("processInfoCommand").Info("No user found in db", zap.Error(err))
 			b.send(tgbotapi.NewMessage(message.Chat.ID, b.templator.InfoCommandNoUser()))
 			return
@@ -279,7 +278,7 @@ func (b *botManager) processInfoCommand(message *tgbotapi.Message) {
 	b.logger.Named("processInfoCommand").Debug("User found", zap.Stringp("username", user.Username), zap.Int64("telegram_id", user.TelegramID))
 	form, err := b.db.GetActualForm(b.ctx, user.TelegramID)
 	if err != nil {
-		if errors.As(err, &noRecordError) {
+		if errors.Is(err, sql.ErrNoRows) {
 			b.logger.Named("processInfoCommand").Info("No form found in db", zap.Error(err))
 			b.send(tgbotapi.NewMessage(message.Chat.ID, b.templator.InfoCommandNoUser()))
 			return
@@ -533,7 +532,7 @@ func (b *botManager) processChatJoinRequest(request *tgbotapi.ChatJoinRequest) {
 	b.logger.Named("processChatJoinRequest").Debug("Processing chat join request")
 	user, err := b.db.GetUserByTelegramID(b.ctx, request.From.ID)
 	if err != nil {
-		if errors.As(err, &noRecordError) {
+		if errors.Is(err, sql.ErrNoRows) {
 			b.logger.Named("processChatJoinRequest").Info("User is not in database")
 			rejectRequest := tgbotapi.DeclineChatJoinRequest{
 				ChatConfig: tgbotapi.ChatConfig{

@@ -5,12 +5,8 @@ import "time"
 const TableNameToken = "tokens"
 
 type Token struct {
-	UUID           string    `gorm:"column:uuid;default:(UUID());uniqueIndex:uuid,priority:1" json:"uuid"`
-	UserTelegramId int64     `gorm:"column:user_telegram_id;primaryKey" json:"user_telegram_id"`
-	User           User      `gorm:"foreignKey:UserTelegramId;references:TelegramID" json:"user"`
-	ExpireAt       time.Time `gorm:"column:expire_at" json:"expire_at"`
-}
-
-func (*Token) TableName() string {
-	return TableNameToken
+	UUID           string    `json:"uuid"`
+	UserTelegramId int64     `json:"user_telegram_id"`
+	User           User      `json:"user"`
+	ExpireAt       time.Time `json:"expire_at"`
 }

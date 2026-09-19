@@ -1,33 +1,8 @@
 services:
-  db:
-    container_name: db
-    image: mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD
-      - MYSQL_DATABASE
-      - MYSQL_USER
-      - MYSQL_PASSWORD
-    volumes:
-      - db:/var/lib/mysql
-    networks:
-      - backend
-    ports:
-      - 3306:3306
-    healthcheck:
-      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
-      timeout: 3s
-      retries: 10
   server:
-    depends_on:
-      db:
-        condition: service_healthy
     container_name: server
     environment:
-      - MYSQL_DATABASE
-      - MYSQL_USER
-      - MYSQL_PASSWORD
-      - MYSQL_HOST
-      - MYSQL_PORT
+      - SQLITE_PATH=/data/beneburg.db
       - BOT_TOKEN
       - ONLY_MAKE_MIGRATIONS
       - NO_AUTH
@@ -38,26 +13,21 @@ services:
       - INVITE_LINK
       - DOMAIN
     build:
-        context: .
-        dockerfile: "deploy/server/${DOCKER_FILE:-deploy}.Dockerfile"
-        no_cache: true
-        args:
-          - ENVIRONMENT
+      context: .
+      dockerfile: "deploy/server/${DOCKER_FILE:-deploy}.Dockerfile"
+      no_cache: true
+      args:
+        - ENVIRONMENT
     volumes:
+      - sqlite_data:/data
       - letsencrypt:/root/.cache
       - ssl:/etc/ssl/certs
     ports:
       - "8080:8080"
       - "2345:2345"
     restart: always
-    networks:
-      - backend
-
 
 volumes:
-    db: {}
-    letsencrypt: {}
-    ssl: {}
-
-networks:
-  backend: {}
+  sqlite_data: {}
+  letsencrypt: {}
+  ssl: {}

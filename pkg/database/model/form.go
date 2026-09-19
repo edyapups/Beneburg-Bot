@@ -1,6 +1,6 @@
 package model
 
-import "gorm.io/gorm"
+import "time"
 
 const TableNameForm = "forms"
 
@@ -11,21 +11,24 @@ const (
 )
 
 type Form struct {
-	gorm.Model
-	UserTelegramId int64 `gorm:"column:user_telegram_id" json:"user_telegram_id"`
-	User           User  `gorm:"foreignKey:UserTelegramId;references:TelegramID" json:"user"`
+	ID             uint       `json:"id"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
+	UserTelegramId int64      `json:"user_telegram_id"`
+	User           User       `json:"user"`
 
-	Name        string  `gorm:"column:name" json:"name"`
-	Age         *int32  `gorm:"column:age" json:"age"`
-	Gender      string  `gorm:"column:gender; type:enum('male', 'female', 'nonbinary', 'undefined');default:'undefined'" json:"gender"`
-	About       *string `gorm:"column:about" json:"about"`
-	Hobbies     *string `gorm:"column:hobbies" json:"hobbies"`
-	Work        *string `gorm:"column:work" json:"work"`
-	Education   *string `gorm:"column:education" json:"education"`
-	CoverLetter *string `gorm:"column:cover_letter" json:"cover_letter"`
-	Contacts    *string `gorm:"column:contacts" json:"contacts"`
+	Name        string  `json:"name"`
+	Age         *int32  `json:"age"`
+	Gender      string  `json:"gender"`
+	About       *string `json:"about"`
+	Hobbies     *string `json:"hobbies"`
+	Work        *string `json:"work"`
+	Education   *string `json:"education"`
+	CoverLetter *string `json:"cover_letter"`
+	Contacts    *string `json:"contacts"`
 
-	Status string `gorm:"column:status; type:enum('new', 'accepted', 'rejected');default:'new'" json:"status"`
+	Status string `json:"status"`
 }
 
 func (u *Form) RuGender() string {
@@ -55,7 +58,3 @@ const (
 	UserCoverLetterDescription = "Почему хочет к нам?"
 	UserContactsDescription    = "Контакты"
 )
-
-func (*Form) TableName() string {
-	return TableNameForm
-}

@@ -5,10 +5,10 @@
 package mock_database
 
 import (
+	database "beneburg/pkg/database"
 	model "beneburg/pkg/database/model"
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	gen "gorm.io/gen"
 	reflect "reflect"
 )
 
@@ -35,22 +35,18 @@ func (m *MockDatabase) EXPECT() *MockDatabaseMockRecorder {
 	return m.recorder
 }
 
-// AutoMigrate mocks base method
-func (m *MockDatabase) AutoMigrate(models ...interface{}) error {
+// Migrate mocks base method
+func (m *MockDatabase) Migrate(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{}
-	for _, a := range models {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "AutoMigrate", varargs...)
+	ret := m.ctrl.Call(m, "Migrate", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AutoMigrate indicates an expected call of AutoMigrate
-func (mr *MockDatabaseMockRecorder) AutoMigrate(models ...interface{}) *gomock.Call {
+// Migrate indicates an expected call of Migrate
+func (mr *MockDatabaseMockRecorder) Migrate(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AutoMigrate", reflect.TypeOf((*MockDatabase)(nil).AutoMigrate), models...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Migrate", reflect.TypeOf((*MockDatabase)(nil).Migrate), ctx)
 }
 
 // CreateUser mocks base method
@@ -174,10 +170,10 @@ func (mr *MockDatabaseMockRecorder) UpdateUserByID(ctx, id, user interface{}) *g
 }
 
 // AcceptUser mocks base method
-func (m *MockDatabase) AcceptUser(ctx context.Context, id uint) (*gen.ResultInfo, error) {
+func (m *MockDatabase) AcceptUser(ctx context.Context, id uint) (*database.ResultInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AcceptUser", ctx, id)
-	ret0, _ := ret[0].(*gen.ResultInfo)
+	ret0, _ := ret[0].(*database.ResultInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -189,10 +185,10 @@ func (mr *MockDatabaseMockRecorder) AcceptUser(ctx, id interface{}) *gomock.Call
 }
 
 // RejectUser mocks base method
-func (m *MockDatabase) RejectUser(ctx context.Context, id uint) (*gen.ResultInfo, error) {
+func (m *MockDatabase) RejectUser(ctx context.Context, id uint) (*database.ResultInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RejectUser", ctx, id)
-	ret0, _ := ret[0].(*gen.ResultInfo)
+	ret0, _ := ret[0].(*database.ResultInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -204,10 +200,10 @@ func (mr *MockDatabaseMockRecorder) RejectUser(ctx, id interface{}) *gomock.Call
 }
 
 // SetUserStatus mocks base method
-func (m *MockDatabase) SetUserStatus(ctx context.Context, id uint, status string) (*gen.ResultInfo, error) {
+func (m *MockDatabase) SetUserStatus(ctx context.Context, id uint, status string) (*database.ResultInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetUserStatus", ctx, id, status)
-	ret0, _ := ret[0].(*gen.ResultInfo)
+	ret0, _ := ret[0].(*database.ResultInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -249,10 +245,10 @@ func (mr *MockDatabaseMockRecorder) GetFormByID(ctx, id interface{}) *gomock.Cal
 }
 
 // AcceptForm mocks base method
-func (m *MockDatabase) AcceptForm(ctx context.Context, id uint) (*gen.ResultInfo, error) {
+func (m *MockDatabase) AcceptForm(ctx context.Context, id uint) (*database.ResultInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AcceptForm", ctx, id)
-	ret0, _ := ret[0].(*gen.ResultInfo)
+	ret0, _ := ret[0].(*database.ResultInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -264,10 +260,10 @@ func (mr *MockDatabaseMockRecorder) AcceptForm(ctx, id interface{}) *gomock.Call
 }
 
 // RejectForm mocks base method
-func (m *MockDatabase) RejectForm(ctx context.Context, id uint) (*gen.ResultInfo, error) {
+func (m *MockDatabase) RejectForm(ctx context.Context, id uint) (*database.ResultInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RejectForm", ctx, id)
-	ret0, _ := ret[0].(*gen.ResultInfo)
+	ret0, _ := ret[0].(*database.ResultInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

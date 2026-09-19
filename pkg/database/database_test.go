@@ -2,90 +2,41 @@ package database
 
 import (
 	"beneburg/pkg/database/model"
-	"beneburg/pkg/utils"
 	"context"
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"regexp"
+	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
-func Test_database(t *testing.T) {
+func TestDatabaseSQLite(t *testing.T) {
 	ctx := context.Background()
-	dbMock, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	sqlDB, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	db := NewDatabaseWithDB(sqlDB, nil).(*database)
+	t.Cleanup(func() { sqlDB.Close() })
+	require.NoError(t, db.Migrate(ctx))
+	testID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	db.uuidGen = func() uuid.UUID { return testID }
 
-	mock.ExpectQuery("SELECT VERSION()").WillReturnRows(sqlmock.NewRows([]string{"version"}).AddRow("8.0.0"))
+	u, err := db.CreateUser(ctx, &model.User{TelegramID: 10, FirstName: "Test", Status: model.UserStatusActive})
+	require.NoError(t, err)
+	require.NotZero(t, u.ID)
+	token, err := db.CreateOrProlongToken(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, testID.String(), token.UUID)
+	byToken, err := db.GetUserByToken(ctx, token.UUID)
+	require.NoError(t, err)
+	require.Equal(t, int64(10), byToken.TelegramID)
 
-	engine, err := gorm.Open(mysql.New(mysql.Config{Conn: dbMock}), &gorm.Config{})
-	assert.NoError(t, err)
-	db := NewDatabaseWithDb(engine, nil)
-	var testUUID uuid.UUID
-	copy(testUUID[:], []byte("test"))
-	db.(*database).uuidGen = func() uuid.UUID {
-		return testUUID
-	}
-
-	t.Run("Get user by id", func(t *testing.T) {
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1")).
-			WithArgs(10).
-			WillReturnRows(sqlmock.NewRows([]string{
-				"id",
-				"created_at",
-				"updated_at",
-				"deleted_at",
-				"telegram_id",
-				"username",
-				"status",
-			}).AddRow(
-				10,
-				time.Now(),
-				time.Now(),
-				nil,
-				11,
-				"test",
-				model.UserStatusActive,
-			))
-		user, err := db.GetUserByID(ctx, 10)
-		assert.NoError(t, err)
-		assert.Equal(t, uint(10), user.ID)
-	})
-	t.Run("CreateOrProlongToken", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `tokens` (`user_telegram_id`,`expire_at`,`uuid`) VALUES (?,?,?)")).WithArgs(
-			10,
-			sqlmock.AnyArg(),
-			testUUID.String(),
-		).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectCommit()
-		token, err := db.CreateOrProlongToken(ctx, 10)
-		assert.NoError(t, err)
-		assert.Equal(t, token.UserTelegramId, int64(10))
-		assert.Equal(t, token.UUID, testUUID.String())
-	})
-	t.Run("CreateUser", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `users` (`created_at`,`updated_at`,`deleted_at`,`telegram_id`,`username`,`status`) VALUES (?,?,?,?,?,?)")).
-			WithArgs(
-				sqlmock.AnyArg(),
-				sqlmock.AnyArg(),
-				sqlmock.AnyArg(),
-				10,
-				"test",
-				model.UserStatusNew,
-			).WillReturnResult(sqlmock.NewResult(10, 1))
-		mock.ExpectCommit()
-
-		_, err := db.CreateUser(ctx, &model.User{
-			TelegramID: 10,
-			Username:   utils.GetAddress("test"),
-			Status:     model.UserStatusNew,
-		})
-		assert.NoError(t, err)
-	})
-
+	form, err := db.CreateForm(ctx, &model.Form{UserTelegramId: 10, Name: "Test", Status: model.FormStatusAccepted})
+	require.NoError(t, err)
+	require.NotZero(t, form.ID)
+	actual, err := db.GetActualForm(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, form.ID, actual.ID)
+	require.Equal(t, int64(10), actual.User.TelegramID)
+	require.WithinDuration(t, time.Now(), token.ExpireAt, 25*time.Hour)
 }

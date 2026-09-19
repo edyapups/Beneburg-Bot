@@ -7,16 +7,17 @@ import (
 	"beneburg/pkg/views"
 	"context"
 	"fmt"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func main() {
@@ -45,7 +46,7 @@ func run(logger *zap.Logger) error {
 	}
 
 	// Making migrations
-	err = db.AutoMigrate(database.Models...)
+	err = db.Migrate(ctx)
 	if err != nil {
 		return err
 	}
@@ -154,12 +155,6 @@ func run(logger *zap.Logger) error {
 
 type Config struct {
 	Database struct {
-		User     string
-		Password string
-		Host     string
-		Port     string
-		Name     string
-
 		DataSourceName     string
 		OnlyMakeMigrations bool
 	}
@@ -185,11 +180,7 @@ func loadConfig() (*Config, error) {
 	fmt.Printf("os.Getenv(\"HOME\") = %s\n", home)
 
 	// Loading config
-	dbName := os.Getenv("MYSQL_DATABASE")
-	dbUser := os.Getenv("MYSQL_USER")
-	dbPassword := os.Getenv("MYSQL_PASSWORD")
-	dbHost := os.Getenv("MYSQL_HOST")
-	dbPort := os.Getenv("MYSQL_PORT")
+	dbPath := os.Getenv("SQLITE_PATH")
 	onlyMakeMigrations := os.Getenv("ONLY_MAKE_MIGRATIONS") == "true"
 	botToken := os.Getenv("BOT_TOKEN")
 	noAuth := os.Getenv("NO_AUTH") == "true"
@@ -206,30 +197,15 @@ func loadConfig() (*Config, error) {
 	}
 	inviteLink := os.Getenv("INVITE_LINK")
 
-	if dbHost == "" {
-		dbHost = "localhost"
+	if dbPath == "" {
+		dbPath = "beneburg.db"
 	}
-	if dbPort == "" {
-		dbPort = "3306"
-	}
-
-	dataSourceName := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName + "?parseTime=true" + "&" + "multiStatements=true"
 	return &Config{
 		Database: struct {
-			User               string
-			Password           string
-			Host               string
-			Port               string
-			Name               string
 			DataSourceName     string
 			OnlyMakeMigrations bool
 		}{
-			User:               dbUser,
-			Password:           dbPassword,
-			Host:               dbHost,
-			Port:               dbPort,
-			Name:               dbName,
-			DataSourceName:     dataSourceName,
+			DataSourceName:     dbPath,
 			OnlyMakeMigrations: onlyMakeMigrations,
 		},
 		Telegram: struct {

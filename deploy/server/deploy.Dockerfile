@@ -6,9 +6,9 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY pkg ./pkg
-COPY beneburg.go ./
+COPY cmd ./cmd
 
-RUN go build -o /beneburg
+RUN go build -o /beneburg ./cmd/beneburg
 
 
 ## Deploy
